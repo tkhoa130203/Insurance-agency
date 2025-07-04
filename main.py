@@ -1,9 +1,9 @@
 """
-Chạy chương trình quản lý đại lý bảo hiểm.
+Chương trình chính khởi động ứng dụng Quản lý Đại lý Bảo hiểm.
 """
 
 from controller.controller import AgencyController
 
 if __name__ == "__main__":
-    controller = AgencyController()
-    controller.run()
+    app = AgencyController()
+    app.run()

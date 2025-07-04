@@ -1,6 +1,8 @@
 """
-Định nghĩa dữ liệu và logic đại lý.
+Module quản lý dữ liệu đại lý bảo hiểm, kết nối với ArangoDB.
 """
+
+from arango import ArangoClient
 
 class Agency:
     def __init__(self, name, region, manager):
@@ -9,19 +11,63 @@ class Agency:
         self.manager = manager
 
     def __str__(self):
-        return f"{self.name} - Khu vực: {self.region}, Quản lý: {self.manager}"
+        return f"{self.name} ({self.region}) - Managed by {self.manager}"
 
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "region": self.region,
+            "manager": self.manager
+        }
 
-class AgencyModel:
-    def __init__(self):
-        self.agencies = []
+class AgencyDatabase:
+    """
+    Quản lý thao tác với ArangoDB: thêm, truy vấn, hiển thị danh sách đại lý.
+    """
 
-    def add_agency(self, name, region, manager):
-        agency = Agency(name, region, manager)
-        self.agencies.append(agency)
+    def __init__(self, db_name="agency_db", collection_name="agencies"):
+        client = ArangoClient()
+        self.sys_db = client.db("_system", username="root", password="123456")
+        if not self.sys_db.has_database(db_name):
+            self.sys_db.create_database(db_name)
 
-    def get_all_agencies(self):
-        return self.agencies
+        self.db = client.db(db_name, username="root", password="123456")
 
-    def search_agency_by_name(self, keyword):
-        return [a for a in self.agencies if keyword.lower() in a.name.lower()]
+        if not self.db.has_collection(collection_name):
+            self.collection = self.db.create_collection(collection_name)
+        else:
+            self.collection = self.db.collection(collection_name)
+
+    def bring_on_new_agency(self, name, region, manager):
+        new_agency = Agency(name, region, manager)
+        self.collection.insert(new_agency.to_dict())
+        print(f"✅ Thêm đại lý '{name}' vào CSDL.")
+
+    def show_me_all_the_agencies(self):
+        agencies = list(self.collection.all())
+
+        if not agencies:
+            print("⚠️ Chưa có đại lý nào.")
+            return []
+
+        print("\n📋 Danh sách đại lý:")
+        for agency in agencies:
+            print(f"- {agency['name']} ({agency['region']}) - Quản lý: {agency['manager']}")
+        return agencies
+
+    def find_agencies_by_name(self, search_term):
+        query = f"""
+        FOR agency IN {self.collection.name}
+            FILTER CONTAINS(LOWER(agency.name), LOWER(@search_term))
+            RETURN agency
+        """
+        cursor = self.db.aql.execute(query, bind_vars={'search_term': search_term})
+        results = list(cursor)
+
+        if not results:
+            print(f"❌ Không tìm thấy đại lý tên '{search_term}'")
+        else:
+            print(f"\n🔍 Kết quả tìm kiếm '{search_term}':")
+            for agency in results:
+                print(f"- {agency['name']} ({agency['region']}) - Quản lý: {agency['manager']}")
+        return results

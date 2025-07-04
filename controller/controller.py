@@ -1,37 +1,30 @@
 """
-Xử lý logic giữa model và view.
+Module điều khiển luồng giữa model và view.
 """
 
-from model.model import AgencyModel
+from model.model import AgencyDatabase
 from view.view import AgencyView
 
 class AgencyController:
     def __init__(self):
-        self.model = AgencyModel()
+        self.model = AgencyDatabase()
         self.view = AgencyView()
 
     def run(self):
         while True:
             self.view.display_menu()
-            choice = input("👉 Nhập lựa chọn của bạn: ")
+            choice = input("Chọn chức năng (1-4): ").strip()
 
             if choice == '1':
                 name, region, manager = self.view.get_input_agency()
-                self.model.add_agency(name, region, manager)
-                print("✅ Đại lý đã được thêm thành công!")
-
+                self.model.bring_on_new_agency(name, region, manager)
             elif choice == '2':
-                agencies = self.model.get_all_agencies()
-                self.view.show_agencies(agencies)
-
+                self.model.show_me_all_the_agencies()
             elif choice == '3':
                 keyword = self.view.get_search_keyword()
-                results = self.model.search_agency_by_name(keyword)
-                self.view.show_agencies(results)
-
+                self.model.find_agencies_by_name(keyword)
             elif choice == '4':
-                print("👋 Cảm ơn bạn! Hẹn gặp lại.")
+                print("👋 Tạm biệt!")
                 break
-
             else:
-                print("⚠️ Lựa chọn không hợp lệ! Vui lòng thử lại.")
+                print("⚠️ Lựa chọn không hợp lệ.")
