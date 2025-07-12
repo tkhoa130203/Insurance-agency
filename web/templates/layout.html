@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý đại lý</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>🛡️ Hệ thống quản lý đại lý bảo hiểm</h1>
+        <nav>
+            <a href="{{ url_for('index') }}">🏠 Trang chủ</a> |
+            <a href="{{ url_for('add_agency') }}">➕ Thêm đại lý</a> |
+            <a href="{{ url_for('search') }}">🔍 Tìm kiếm</a>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

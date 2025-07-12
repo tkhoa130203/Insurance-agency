@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>➕ Thêm đại lý mới</h2>
+<form method="POST">
+    <label>Tên đại lý:</label><br>
+    <input type="text" name="name" required><br>
+    <label>Khu vực:</label><br>
+    <input type="text" name="region" required><br>
+    <label>Người quản lý:</label><br>
+    <input type="text" name="manager" required><br><br>
+    <button type="submit">Thêm đại lý</button>
+</form>
+{% endblock %}

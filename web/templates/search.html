@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>🔍 Tìm đại lý theo tên</h2>
+<form method="POST">
+    <input type="text" name="keyword" placeholder="Nhập tên đại lý..." required>
+    <button type="submit">Tìm</button>
+</form>
+
+{% if results %}
+<h3>Kết quả:</h3>
+<ul>
+    {% for a in results %}
+    <li>{{ a['name'] }} ({{ a['region'] }}) - QL: {{ a['manager'] }}</li>
+    {% endfor %}
+</ul>
+{% elif request.method == 'POST' %}
+<p>❌ Không tìm thấy đại lý nào phù hợp.</p>
+{% endif %}
+{% endblock %}
