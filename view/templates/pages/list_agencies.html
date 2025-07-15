@@ -1,0 +1,49 @@
+{% extends "dashboard-layout.html" %} {% block content %} {% block breadcrumb %}
+{% set name = "Đại lý" %} {% set link = "Danh sách" %} {% include
+"components/breadcrumb.html" %} {% endblock %}
+
+<div class="grid grid-cols-12 gap-x-6">
+  <div class="col-span-12">
+    <div class="card table-card">
+      <div class="card-header">
+        <h5>Đại lý</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <tbody>
+              {% if agencies %}
+                {% for a in agencies %}
+                <tr class="unread">
+                  <td>
+                    <img
+                      class="rounded-full max-w-10"
+                      style="width: 40px"
+                      src="../assets/images/user/avatar-1.jpg"
+                      alt="activity-user"
+                    />
+                  </td>
+                  <td>
+                    <h6 class="mb-1">{{ a.name }}</h6>
+                    <p class="m-0">Khu vực: {{ a.region }}</p>
+                  </td>
+                  <td>
+                    <h6 class="mb-1">Quản lý: {{ a.manager }}</h6>
+                  </td>
+                  <td>
+                    <a href="#" class="badge bg-theme-bg-2 text-white text-[12px] mx-2">Reject</a>
+                    <a href="#" class="badge bg-theme-bg-1 text-white text-[12px]">Approve</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endif %}
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

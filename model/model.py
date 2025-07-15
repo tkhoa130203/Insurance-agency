@@ -49,17 +49,16 @@ class AgencyDatabase:
         print(f"✅ Thêm đại lý '{name}' vào CSDL.")
 
     def show_me_all_the_agencies(self):
-        # List all đại lý trong collection
+        # List all đại lý trong collection, trả về list dict cho Flask
         agencies = list(self.collection.all())
-
-        if not agencies:
-            print("⚠️ Chưa có đại lý nào.")
-            return []
-
-        print("\n📋 Danh sách đại lý:")
+        result = []
         for agency in agencies:
-            print(f"- {agency['name']} ({agency['region']}) - Quản lý: {agency['manager']}")
-        return agencies
+            result.append({
+                "name": agency.get("name", ""),
+                "region": agency.get("region", ""),
+                "manager": agency.get("manager", "")
+            })
+        return result
 
     def find_agencies_by_name(self, search_term):
         # Tìm kiếm đại lý theo tên

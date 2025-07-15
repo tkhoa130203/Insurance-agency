@@ -1,0 +1,20 @@
+{% extends "dashboard-layout.html" %}
+{% block content %}
+
+{% block breadcrumb %}
+    {% set name = "Dashboard" %}
+    {% set link = "Dashboard" %}
+{% include "components/breadcrumb.html" %}
+{% endblock %}
+
+<h2>📋 Danh sách đại lý</h2>
+{% if agencies %}
+<ul>
+    {% for a in agencies %}
+    <li>{{ a['name'] }} ({{ a['region'] }}) - QL: {{ a['manager'] }}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>⚠️ Chưa có đại lý nào.</p>
+{% endif %}
+{% endblock %}
