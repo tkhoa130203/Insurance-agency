@@ -94,6 +94,10 @@ def list_contracts():
 def add_contract():
     return render_template('pages/add_contract.html')
 
+@app.route('/sales_channel_structure')
+def sales_channel_structure():
+    return render_template('pages/sales_channel_structure.html')
+
 @app.route('/export')
 def export():
     return render_template('pages/export.html')

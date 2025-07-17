@@ -1,0 +1,67 @@
+{% extends "dashboard-layout.html" %}
+{% block content %}
+{% block breadcrumb %}
+    {% set name = "Cấu trúc kênh bán hàng" %}
+    {% set link = "Sales Channel Structure" %}
+    {% include "components/breadcrumb.html" %}
+{% endblock %}
+
+<div class="flex gap-6">
+  <!-- Sidebar cây đại lý bên trái -->
+  <div class="w-64 min-w-[220px]">
+    <div class="card h-full">
+      <div class="card-header bg-gray-100">
+        <h6 class="font-bold">General agent information</h6>
+      </div>
+      <div class="card-body overflow-y-auto" style="max-height: 600px;">
+        <!-- Tree structure placeholder -->
+        <ul class="text-xs">
+          <li><b>ROOT</b>
+            <ul>
+              <li>AGENCY 1
+                <ul>
+                  <li>AGENT A</li>
+                  <li>AGENT B</li>
+                </ul>
+              </li>
+              <li>AGENCY 2</li>
+              <li>AGENCY 3</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <!-- Panel thông tin chi tiết bên phải -->
+  <div class="flex-1">
+    <div class="card">
+      <div class="card-header bg-gray-100 flex justify-between items-center">
+        <h6 class="font-bold">Agent Details</h6>
+        <span class="text-xs text-gray-400">Date: 30/06/2025</span>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <h6 class="font-semibold mb-2">Agent Appointment Details</h6>
+            <div class="mb-1 text-xs">Agent number: <span class="text-blue-600">60007960</span></div>
+            <div class="mb-1 text-xs">Agent status: <span>Inforce</span></div>
+            <div class="mb-1 text-xs">Insurance code(s): <span>007800577, 002894965</span></div>
+            <div class="mb-1 text-xs">Reporting office: <span>HCM</span></div>
+            <div class="mb-1 text-xs">Date appointed: <span>23/06/2017</span></div>
+            <div class="mb-1 text-xs">Date succeed: <span>31/08/2023</span></div>
+          </div>
+          <div>
+            <h6 class="font-semibold mb-2">Client Maintain - Personal</h6>
+            <div class="mb-1 text-xs">Client number: <span>3002187</span></div>
+            <div class="mb-1 text-xs">Birth date: <span>20/10/1985</span></div>
+            <div class="mb-1 text-xs">Gender: <span>Female</span></div>
+            <div class="mb-1 text-xs">Telephone: <span>Phường Trà Bá</span></div>
+            <div class="mb-1 text-xs">Email address: <span>Trần Gia Lai</span></div>
+            <div class="mb-1 text-xs">Tax code: <span>807849166</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
