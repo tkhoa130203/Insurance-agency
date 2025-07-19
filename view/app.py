@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Flask, render_template, request, redirect, url_for
-from model.model import AgencyDatabase
+from model.model import AgencyDatabase, build_tree_from_relation
 
 app = Flask(__name__)
 db = AgencyDatabase()
@@ -96,7 +96,9 @@ def add_contract():
 
 @app.route('/sales_channel_structure')
 def sales_channel_structure():
-    return render_template('pages/sales_channel_structure.html')
+    agents = db.fetch_agents()
+    agent_tree = build_tree_from_relation(agents)
+    return render_template('pages/sales_channel_structure.html', agent_tree=agent_tree)
 
 @app.route('/export')
 def export():

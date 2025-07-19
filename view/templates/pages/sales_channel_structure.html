@@ -1,4 +1,5 @@
 {% extends "dashboard-layout.html" %}
+
 {% block content %}
 {% block breadcrumb %}
     {% set name = "Cấu trúc kênh bán hàng" %}
@@ -6,32 +7,34 @@
     {% include "components/breadcrumb.html" %}
 {% endblock %}
 
+{% macro render_agent_tree(nodes) %}
+<ul class="ml-4 text-xs list-disc">
+  {%- for node in nodes %}
+    <li>
+      <span class="font-medium">{{ node.grade }} - {{ node.name }}</span>
+      {% if node.children %}
+        {{ render_agent_tree(node.children) }}
+      {% endif %}
+    </li>
+  {%- endfor %}
+</ul>
+{% endmacro %}
+
 <div class="flex gap-6">
   <!-- Sidebar cây đại lý bên trái -->
-  <div class="w-64 min-w-[220px]">
+  <div class="flex flex-col max-w-sm flex-1">
     <div class="card h-full">
       <div class="card-header bg-gray-100">
         <h6 class="font-bold">General agent information</h6>
       </div>
-      <div class="card-body overflow-y-auto" style="max-height: 600px;">
-        <!-- Tree structure placeholder -->
-        <ul class="text-xs">
-          <li><b>ROOT</b>
-            <ul>
-              <li>AGENCY 1
-                <ul>
-                  <li>AGENT A</li>
-                  <li>AGENT B</li>
-                </ul>
-              </li>
-              <li>AGENCY 2</li>
-              <li>AGENCY 3</li>
-            </ul>
-          </li>
-        </ul>
+      <div class="card-body overflow-y-auto max-h-[500px] p-4">
+        <!-- Cây đại lý từ dữ liệu động -->
+        <b class="text-xs">ROOT</b>
+        {{ render_agent_tree(agent_tree) }}
       </div>
     </div>
   </div>
+
   <!-- Panel thông tin chi tiết bên phải -->
   <div class="flex-1">
     <div class="card">
@@ -64,4 +67,5 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
