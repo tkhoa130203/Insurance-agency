@@ -3,15 +3,13 @@ Module điều khiển luồng giữa model và view.
 """
 
 from model.model import AgencyDatabase
-from viewss.view import AgencyView
 
 class AgencyController:
     def __init__(self):
         # Tạo model để quản lý dữ liệu của đại lý
         self.model = AgencyDatabase()
-        self.view = AgencyView()
 
-    def run(self):
+    
         while True:
             # Menu lựa chọn
             self.view.display_menu()

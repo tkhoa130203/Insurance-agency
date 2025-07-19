@@ -1,4 +1,14 @@
 
+# Jinja2 filter: combine 2 dicts (node, node.details)
+def combine_dicts(a, b):
+    if not isinstance(a, dict):
+        a = dict(a)
+    if not isinstance(b, dict):
+        b = dict(b)
+    merged = a.copy()
+    merged.update(b)
+    return merged
+
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -7,6 +17,7 @@ from flask import Flask, render_template, request, redirect, url_for
 from model.model import AgencyDatabase, build_tree_from_relation
 
 app = Flask(__name__)
+app.jinja_env.filters['combine'] = combine_dicts
 db = AgencyDatabase()
 
 @app.route('/')
@@ -97,8 +108,9 @@ def add_contract():
 @app.route('/sales_channel_structure')
 def sales_channel_structure():
     agents = db.fetch_agents()
+    detail_map = db.fetch_agent_details()
     agent_tree = build_tree_from_relation(agents)
-    return render_template('pages/sales_channel_structure.html', agent_tree=agent_tree)
+    return render_template('pages/sales_channel_structure.html', agent_tree=agent_tree, detail_map=detail_map)
 
 @app.route('/export')
 def export():
