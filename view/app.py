@@ -108,9 +108,19 @@ def add_contract():
 @app.route('/sales_channel_structure')
 def sales_channel_structure():
     agents = db.fetch_agents()
-    detail_map = db.fetch_agent_details()
-    agent_tree = build_tree_from_relation(agents)
-    return render_template('pages/sales_channel_structure.html', agent_tree=agent_tree, detail_map=detail_map)
+
+    # Lấy chi tiết agent chỉ cho các agent_code có trong agents
+    detail_map = db.fetch_agent_details(relations=agents, only_common=True)
+
+    # Dùng detail_map đã lọc khi build tree
+    agent_tree = build_tree_from_relation(agents, detail_map=detail_map)
+
+    return render_template(
+        'pages/sales_channel_structure.html',
+        agent_tree=agent_tree,
+        detail_map=detail_map
+    )
+
 
 @app.route('/export')
 def export():

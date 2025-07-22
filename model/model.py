@@ -1,5 +1,7 @@
+import uuid
 from arango import ArangoClient
 from collections import defaultdict
+
 
 GRADE_ORDER = {
     "GM": 1,
@@ -18,12 +20,11 @@ class Agency:
         self.name = name
         self.region = region
         self.manager = manager
-
-    def __str__(self):
-        return f"{self.name} ({self.region}) - Managed by {self.manager}"
+        self._key = str(uuid.uuid4())  # Sinh khóa ngẫu nhiên
 
     def to_dict(self):
         return {
+            "_key": self._key,
             "name": self.name,
             "region": self.region,
             "manager": self.manager
@@ -31,19 +32,6 @@ class Agency:
 
 
 class AgencyDatabase:
-    def fetch_agent_details(self):
-        # Lấy toàn bộ chi tiết agent từ collection dms_agent_detail, trả về dict agent_code -> detail
-        if not self.db.has_collection("dms_agent_detail"):
-            return {}
-        detail_col = self.db.collection("dms_agent_detail")
-        details = list(detail_col.all())
-        detail_map = {}
-        for detail in details:
-            code = detail.get("agent_code")
-            if code:
-                detail_map[code] = detail
-        return detail_map
-    
     def __init__(self, db_name="agency_db", collection_name="agencies"):
         client = ArangoClient()
         self.sys_db = client.db("_system", username="root", password="123456")
@@ -57,6 +45,50 @@ class AgencyDatabase:
             self.collection = self.db.create_collection(collection_name)
         else:
             self.collection = self.db.collection(collection_name)
+
+    def fetch_agent_details(self, relations=None, only_common=False):
+        if not self.db.has_collection("dms_agent_detail"):
+            return {}
+
+        detail_col = self.db.collection("dms_agent_detail")
+
+        if not only_common or not relations:
+            details = list(detail_col.all())
+        else:
+            # Lấy danh sách agent_code và child_code từ relations
+            related_codes = set()
+            for rel in relations:
+                if "agent_code" in rel:
+                    related_codes.add(str(rel["agent_code"]))
+                if "child_code" in rel:
+                    related_codes.add(str(rel["child_code"]))
+
+            # ✅ Thêm thủ công code bạn muốn thử vào
+            related_codes.add("60000449")  # 👈 ép thêm agent_code thử nghiệm
+
+            codes_list = list(related_codes)
+
+            query = """
+            FOR doc IN dms_agent_detail
+                FILTER doc.agent_code IN @codes
+                RETURN doc
+            """
+            cursor = self.db.aql.execute(query, bind_vars={"codes": codes_list})
+            details = list(cursor)
+
+        # Tạo detail_map và in dữ liệu thử
+        detail_map = {}
+        for detail in details:
+            code = str(detail.get("agent_code"))
+            detail_map[code] = detail
+
+            # ✅ In dữ liệu cho 60000449 nếu có
+            if code == "60000449":
+                print("✅ FOUND 60000449:")
+                from pprint import pprint
+                pprint(detail)
+
+        return detail_map
 
     def bring_on_new_agency(self, name, region, manager):
         new_agency = Agency(name, region, manager)
@@ -102,9 +134,6 @@ def build_tree_from_relation(relations, detail_map=None):
     children_map = defaultdict(list)
     all_children = set()
 
-    if detail_map is None:
-        detail_map = {}
-
     filtered = [
         rel for rel in relations
         if rel.get("agent_grade") in VALID_GRADES or rel.get("child_grade") in VALID_GRADES
@@ -116,30 +145,35 @@ def build_tree_from_relation(relations, detail_map=None):
 
         # ----- Đại lý cha -----
         if a_code and a_code not in node_map and rel.get("agent_grade") in VALID_GRADES:
-            merged = {}
-            # Gộp tất cả field từ record direct_indirect
-            merged.update(rel)
-            # Gộp thêm từ detail nếu có
-            if a_code in detail_map:
-                merged.update(detail_map[a_code])
-            # Chuẩn hóa tên và thông tin chính
-            merged["code"] = a_code
-            merged["name"] = rel.get("agent_name", "")
-            merged["grade"] = rel.get("agent_grade", "")
-            merged["children"] = []
-            node_map[a_code] = merged
+            # Dữ liệu từ rel
+            agent_data = {
+                "code": a_code,
+                "name": rel.get("agent_name", ""),
+                "grade": rel.get("agent_grade", ""),
+                "status": rel.get("agent_status", ""),
+                "parent_code": rel.get("agent_parent_code", ""),
+                "raw": rel,  # lưu toàn bộ object gốc từ relation
+                "children": []
+            }
+            # Gộp thêm detail nếu có
+            if detail_map and a_code in detail_map:
+                agent_data.update(detail_map[a_code])
+            node_map[a_code] = agent_data
 
         # ----- Đại lý con -----
         if c_code and c_code not in node_map and rel.get("child_grade") in VALID_GRADES:
-            merged = {}
-            merged.update(rel)
-            if c_code in detail_map:
-                merged.update(detail_map[c_code])
-            merged["code"] = c_code
-            merged["name"] = rel.get("child_name", "")
-            merged["grade"] = rel.get("child_grade", "")
-            merged["children"] = []
-            node_map[c_code] = merged
+            child_data = {
+                "code": c_code,
+                "name": rel.get("child_name", ""),
+                "grade": rel.get("child_grade", ""),
+                "status": rel.get("child_status", ""),
+                "parent_code": rel.get("agent_code", ""),
+                "raw": rel,
+                "children": []
+            }
+            if detail_map and c_code in detail_map:
+                child_data.update(detail_map[c_code])
+            node_map[c_code] = child_data
 
         # Gán quan hệ cha-con
         if a_code in node_map and c_code in node_map:
@@ -150,7 +184,7 @@ def build_tree_from_relation(relations, detail_map=None):
     for parent_code, child_codes in children_map.items():
         node_map[parent_code]["children"] = [node_map[c] for c in child_codes]
 
-    # Root
+    # Tìm node gốc
     root_nodes = [node for code, node in node_map.items() if code not in all_children]
 
     if not root_nodes:
@@ -163,7 +197,6 @@ def build_tree_from_relation(relations, detail_map=None):
 
     sort_nodes_by_grade(root_nodes)
     return root_nodes
-
 
 def sort_nodes_by_grade(nodes):
     stack = list(nodes)

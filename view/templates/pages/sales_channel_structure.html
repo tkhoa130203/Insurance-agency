@@ -12,7 +12,7 @@
   {%- for node in nodes %}
     <li>
       <span class="font-medium cursor-pointer text-blue-600 hover:underline"
-            data-agent-code='{{ node.code }}'
+            data-agent-code='{{ node.parent_code }}'
             onclick="showAgentDetails(this)">
         {{ node.grade }} - {{ node.name }}
       </span>
@@ -24,78 +24,125 @@
 </ul>
 {% endmacro %}
 
-
 <div class="flex gap-6">
-  <!-- Sidebar cây đại lý bên trái -->
+  <!-- Sidebar -->
   <div class="flex flex-col max-w-sm flex-2">
     <div class="card h-full">
       <div class="card-header bg-gray-100">
         <h6 class="font-bold">General agent information</h6>
       </div>
       <div class="card-body overflow-y-auto max-h-[500px] p-4">
-        <!-- Cây đại lý từ dữ liệu động -->
         <b class="text-xs">ROOT</b>
         {{ render_agent_tree(agent_tree) }}
       </div>
     </div>
   </div>
 
-  <!-- Panel thông tin chi tiết bên phải -->
+  <!-- Agent Details -->
   <div class="flex-1">
-  <div class="card">
-    <div class="card-header bg-gray-100 flex justify-between items-center">
-      <h6 class="font-bold">Agent Details</h6>
-      <span class="text-xs text-gray-400">Date: <span id="agent-date">--</span></span>
-    </div>
-    <div class="card-body" id="agent-details">
-      <div class="text-xs text-gray-400">Chọn đại lý bên trái để xem thông tin.</div>
+    <div class="card">
+      <div class="card-header bg-gray-100 flex justify-between items-center">
+        <h6 class="font-bold">Agent Details</h6>
+        <span class="text-xs text-gray-400">Agent ID: <span id="agent-id">--</span></span>
+      </div>
+      <div class="card-body" id="agent-details">
+        <div class="text-xs text-gray-400">Chọn đại lý bên trái để xem thông tin.</div>
+      </div>
     </div>
   </div>
 </div>
 
-</div>
-
-
 <script>
 const detailMap = {{ detail_map | tojson | safe }};
-function showAgentDetails(el) {
-  const code = el.dataset.agentCode;
-  const data = detailMap[code] || {};
-  const html = `
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <h6 class="font-semibold mb-2">Agent Appointment Details</h6>
-        <div class="mb-1 text-xs">Agent number: <span class="text-blue-600">${data.agent_code || '--'}</span></div>
-        <div class="mb-1 text-xs">Agent grade: <span>${data.grade || '--'}</span></div>
-        <div class="mb-1 text-xs">Agent name: <span>${data.agent_name || '--'}</span></div>
-        <div class="mb-1 text-xs">Agent status: <span>${data.agent_status || '--'}</span></div>
-        <div class="mb-1 text-xs">Area code: <span>${data.area_code || '--'}</span></div>
-        <div class="mb-1 text-xs">Area name: <span>${data.area_name || '--'}</span></div>
-        <div class="mb-1 text-xs">Sales unit: <span>${data.sales_unit_name || '--'}</span></div>
-        <div class="mb-1 text-xs">Date appointed: <span>${data.date_appointed || '--'}</span></div>
-        <div class="mb-1 text-xs">Date promoted: <span>${data.date_promoted || '--'}</span></div>
-        <div class="mb-1 text-xs">Date demoted: <span>${data.date_demoted || '--'}</span></div>
-        <div class="mb-1 text-xs">Date terminated: <span>${data.date_terminated || '--'}</span></div>
-        <div class="mb-1 text-xs">License no: <span>${data.license_no || '--'}</span></div>
-        <div class="mb-1 text-xs">Commission class: <span>${data.commission_class || '--'}</span></div>
-      </div>
-      <div>
-        <h6 class="font-semibold mb-2">Other Info</h6>
-        <div class="mb-1 text-xs">Client code: <span>${data.client_code || '--'}</span></div>
-        <div class="mb-1 text-xs">Reporting to: <span>${data.reporting_to_name || '--'}</span></div>
-        <div class="mb-1 text-xs">Introducer: <span>${data.introducer_name || '--'}</span></div>
-        <div class="mb-1 text-xs">Birth date: <span>${data.birth_date || '--'}</span></div>
-        <div class="mb-1 text-xs">Gender: <span>${data.gender || '--'}</span></div>
-        <div class="mb-1 text-xs">Telephone: <span>${data.telephone || '--'}</span></div>
-        <div class="mb-1 text-xs">Email: <span>${data.email || '--'}</span></div>
-        <div class="mb-1 text-xs">Tax code: <span>${data.tax_code || '--'}</span></div>
-        <div class="mb-1 text-xs">Last movement: <span>${data.last_movement_date || '--'}</span></div>
-      </div>
+
+function createInput(label, value, readonly=false) {
+  return `
+    <div class="mb-1 text-xs">
+      <label class="block text-gray-500">${label}</label>
+      <input type="text" class="border p-1 rounded w-full text-sm" value="${value || ''}" ${readonly ? 'readonly' : ''}>
     </div>
   `;
+}
+
+function showAgentDetails(el) {
+  // Lấy đúng key agent_code, fallback sang node.code nếu không có
+  let code = el.dataset.agentCode;
+  let data = detailMap["code"];
+  // Nếu không có, thử tìm với các key khác (ví dụ: code, agent_code)
+  if (!data) {
+    // Thử tìm với code dạng string/number
+    const keys = Object.keys(detailMap);
+    data = keys.find(k => k == code) ? detailMap[code] : null;
+    if (!data && code && code.startsWith('0')) {
+      // Nếu code có số 0 đầu, thử bỏ số 0
+      const codeNoZero = code.replace(/^0+/, '');
+      data = detailMap[codeNoZero];
+    }
+  }
+  if (!data) data = {};
+
+  const leftCol = `
+    <h6 class="font-semibold mb-2">Agent Basic Info</h6>
+    ${createInput('Agent number', code, true)}
+    ${createInput('Agent name', data.agent_name || data.name || '')}
+    ${createInput('Display name', data.display_name)}
+    ${createInput('Agent grade', data.grade)}
+    ${createInput('Grade name', data.grade_name)}
+    ${createInput('Agent status', data.agent_status)}
+    ${createInput('Commission class', data.commission_class)}
+    ${createInput('License no', data.license_no)}
+    ${createInput('Territories', data.territories)}
+    ${createInput('AL Code', data.al_code)}
+    ${createInput('AL Name', data.al_name)}
+    ${createInput('AL Grade ID', data.al_grade_id)}
+    ${createInput('Start Join Date', data.start_join_date)}
+    ${createInput('Date Appointed', data.date_appointed)}
+    ${createInput('Date First Appointed', data.date_first_appointed)}
+    ${createInput('Date Promoted', data.date_promoted)}
+    ${createInput('Date Demoted', data.date_demoted)}
+    ${createInput('Date Recovered', data.date_recovered)}
+    ${createInput('Date Terminated', data.date_terminated)}
+  `;
+
+  const rightCol = `
+    <h6 class="font-semibold mb-2">Additional Info</h6>
+    ${createInput('Client code', data.client_code)}
+    ${createInput('Area code', data.area_code)}
+    ${createInput('Area name', data.area_name)}
+    ${createInput('Sales unit code', data.sales_unit_code)}
+    ${createInput('Sales unit name', data.sales_unit_name)}
+    ${createInput('Reporting to code', data.reporting_to_code)}
+    ${createInput('Reporting to name', data.reporting_to_name)}
+    ${createInput('Grade Reporting To', data.grade_reporting_to)}
+    ${createInput('Agent Parent Code', data.agent_parent_code)}
+    ${createInput('Grade ID Parent', data.grade_id_parent)}
+    ${createInput('Introducer Code', data.introducer_code)}
+    ${createInput('Introducer Name', data.introducer_name)}
+    ${createInput('Ref Type', data.ref_type)}
+    ${createInput('Last Movement Type', data.last_movement_type)}
+    ${createInput('Last Movement Date', data.last_movement_date)}
+    ${createInput('Suspend Status', data.suspend_status)}
+    ${createInput('Suspend Date', data.suspend_date)}
+    ${createInput('Reason of Termination', data.reason_of_termination)}
+    ${createInput('Is Promote', data.is_promote)}
+    ${createInput('Is SFC', data.is_sfc)}
+    ${createInput('Created By', data.created_by)}
+    ${createInput('Created Date', data.created_date)}
+    ${createInput('Updated By', data.updated_by)}
+    ${createInput('Updated Date', data.updated_date)}
+    ${createInput('Deleted By', data.deleted_by)}
+    ${createInput('Deleted Date', data.deleted_date)}
+  `;
+
+  const html = `
+    <div class="grid grid-cols-2 gap-4">
+      <div>${leftCol}</div>
+      <div>${rightCol}</div>
+    </div>
+  `;
+
   document.getElementById("agent-details").innerHTML = html;
-  document.getElementById("agent-date").textContent = "Agent ID: " + (data.id || code || '--');
+  document.getElementById("agent-id").textContent = data.id || code || '--';
 }
 </script>
-
 {% endblock %}
