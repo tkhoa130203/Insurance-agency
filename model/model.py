@@ -1,6 +1,6 @@
 import uuid
 from arango import ArangoClient
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
 GRADE_ORDER = {
@@ -63,9 +63,6 @@ class AgencyDatabase:
                 if "child_code" in rel:
                     related_codes.add(str(rel["child_code"]))
 
-            # ✅ Thêm thủ công code bạn muốn thử vào
-            related_codes.add("60000449")  # 👈 ép thêm agent_code thử nghiệm
-
             codes_list = list(related_codes)
 
             query = """
@@ -81,12 +78,6 @@ class AgencyDatabase:
         for detail in details:
             code = str(detail.get("agent_code"))
             detail_map[code] = detail
-
-            # ✅ In dữ liệu cho 60000449 nếu có
-            if code == "60000449":
-                print("✅ FOUND 60000449:")
-                from pprint import pprint
-                pprint(detail)
 
         return detail_map
 
@@ -129,40 +120,38 @@ class AgencyDatabase:
         return list(cursor)
 
 
-def build_tree_from_relation(relations, detail_map=None):
+
+def build_tree_from_relation_bfs(relations, detail_map=None):
+    from collections import deque, defaultdict
+
     node_map = {}
     children_map = defaultdict(list)
     all_children = set()
 
-    filtered = [
-        rel for rel in relations
-        if rel.get("agent_grade") in VALID_GRADES or rel.get("child_grade") in VALID_GRADES
-    ]
+    # Chuẩn hóa relations
+    for rel in relations:
+        a_code = str(rel.get("agent_code", "")).strip()
+        c_code = str(rel.get("child_code", "")).strip()
 
-    for rel in filtered:
-        a_code = rel.get("agent_code")
-        c_code = rel.get("child_code")
-
-        # ----- Đại lý cha -----
+        # Agent cha
         if a_code and a_code not in node_map and rel.get("agent_grade") in VALID_GRADES:
-            # Dữ liệu từ rel
-            agent_data = {
+            node_map[a_code] = {
                 "code": a_code,
                 "name": rel.get("agent_name", ""),
                 "grade": rel.get("agent_grade", ""),
                 "status": rel.get("agent_status", ""),
                 "parent_code": rel.get("agent_parent_code", ""),
-                "raw": rel,  # lưu toàn bộ object gốc từ relation
+                "raw": rel,
                 "children": []
             }
-            # Gộp thêm detail nếu có
-            if detail_map and a_code in detail_map:
-                agent_data.update(detail_map[a_code])
-            node_map[a_code] = agent_data
+            if detail_map:
+                detail = detail_map.get(a_code)
+                if detail:
+                    node_map[a_code].update(detail)
 
-        # ----- Đại lý con -----
+        # Agent con
         if c_code and c_code not in node_map and rel.get("child_grade") in VALID_GRADES:
-            child_data = {
+            node_map[c_code] = {
                 "code": c_code,
                 "name": rel.get("child_name", ""),
                 "grade": rel.get("child_grade", ""),
@@ -171,22 +160,18 @@ def build_tree_from_relation(relations, detail_map=None):
                 "raw": rel,
                 "children": []
             }
-            if detail_map and c_code in detail_map:
-                child_data.update(detail_map[c_code])
-            node_map[c_code] = child_data
+            if detail_map:
+                detail = detail_map.get(c_code)
+                if detail:
+                    node_map[c_code].update(detail)
 
-        # Gán quan hệ cha-con
-        if a_code in node_map and c_code in node_map:
+        # Gán quan hệ cha - con
+        if a_code and c_code:
             children_map[a_code].append(c_code)
             all_children.add(c_code)
 
-    # Gán children vào parent
-    for parent_code, child_codes in children_map.items():
-        node_map[parent_code]["children"] = [node_map[c] for c in child_codes]
-
     # Tìm node gốc
-    root_nodes = [node for code, node in node_map.items() if code not in all_children]
-
+    root_nodes = [node_map[code] for code in node_map if code not in all_children]
     if not root_nodes:
         root_nodes = [{
             "code": "ROOT",
@@ -195,8 +180,19 @@ def build_tree_from_relation(relations, detail_map=None):
             "children": list(node_map.values())
         }]
 
+    # BFS traversal
+    queue = deque(root_nodes)
+    while queue:
+        current = queue.popleft()
+        for child_code in children_map.get(current["code"], []):
+            child_node = node_map.get(child_code)
+            if child_node:
+                current["children"].append(child_node)
+                queue.append(child_node)
+
     sort_nodes_by_grade(root_nodes)
     return root_nodes
+
 
 def sort_nodes_by_grade(nodes):
     stack = list(nodes)

@@ -2,9 +2,9 @@
 
 {% block content %}
 {% block breadcrumb %}
-    {% set name = "Cấu trúc kênh bán hàng" %}
-    {% set link = "Sales Channel Structure" %}
-    {% include "components/breadcrumb.html" %}
+  {% set name = "Cấu trúc kênh bán hàng" %}
+  {% set link = "Sales Channel Structure" %}
+  {% include "components/breadcrumb.html" %}
 {% endblock %}
 
 {% macro render_agent_tree(nodes) %}
@@ -12,13 +12,11 @@
   {%- for node in nodes %}
     <li>
       <span class="font-medium cursor-pointer text-blue-600 hover:underline"
-            data-agent-code='{{ node.parent_code }}'
-            onclick="showAgentDetails(this)">
+            data-agent-code="{{ node.code }}"
+            onclick="toggleChildren('{{ node.code }}'); showAgentDetails(this)">
         {{ node.grade }} - {{ node.name }}
       </span>
-      {% if node.children %}
-        {{ render_agent_tree(node.children) }}
-      {% endif %}
+      <ul class="ml-4 children-list hidden" id="children-{{ node.code }}"></ul>
     </li>
   {%- endfor %}
 </ul>
@@ -32,7 +30,6 @@
         <h6 class="font-bold">General agent information</h6>
       </div>
       <div class="card-body overflow-y-auto max-h-[500px] p-4">
-        <b class="text-xs">ROOT</b>
         {{ render_agent_tree(agent_tree) }}
       </div>
     </div>
@@ -53,9 +50,62 @@
 </div>
 
 <script>
-const detailMap = {{ detail_map | tojson | safe }};
+function toggleChildren(code) {
+  const container = document.getElementById("children-" + code);
 
-function createInput(label, value, readonly=false) {
+  if (!container.classList.contains("hidden")) {
+    container.classList.add("hidden");
+    return;
+  }
+
+  if (container.dataset.loaded === "true") {
+    container.classList.remove("hidden");
+    return;
+  }
+
+  fetch("/api/agent-children/" + code)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.length) return;
+
+      const html = data.map(child => `
+        <li>
+          <span class="font-bold text-gray-600 cursor-pointer mr-1"
+                onclick="toggleChildren('${child.code}')">▶</span>
+          <span class="font-medium cursor-pointer text-blue-600 hover:underline"
+                onclick="showAgentDetailsByCode('${child.code}')">
+            ${child.grade} - ${child.name}
+          </span>
+          <ul class="ml-4 children-list hidden" id="children-${child.code}"></ul>
+        </li>
+      `).join("");
+
+      container.innerHTML = html;
+      container.dataset.loaded = "true";
+      container.classList.remove("hidden");
+    });
+}
+
+function showAgentDetails(el) {
+  const code = el.dataset.agentCode;
+  showAgentDetailsByCode(code);
+}
+
+function showAgentDetailsByCode(code) {
+  fetch("/api/agent-detail/" + code)
+    .then(res => res.json())
+    .then(data => {
+      if (!data || Object.keys(data).length === 0) {
+        document.getElementById("agent-id").textContent = code || '--';
+        document.getElementById("agent-details").innerHTML = '<div class="text-sm text-red-500">Không tìm thấy thông tin đại lý.</div>';
+        return;
+      }
+      document.getElementById("agent-id").textContent = data.id || code || '--';
+      document.getElementById("agent-details").innerHTML = renderAgentDetailUI(code, data);
+    });
+}
+
+function createInput(label, value, readonly = false) {
   return `
     <div class="mb-1 text-xs">
       <label class="block text-gray-500">${label}</label>
@@ -64,23 +114,7 @@ function createInput(label, value, readonly=false) {
   `;
 }
 
-function showAgentDetails(el) {
-  // Lấy đúng key agent_code, fallback sang node.code nếu không có
-  let code = el.dataset.agentCode;
-  let data = detailMap["code"];
-  // Nếu không có, thử tìm với các key khác (ví dụ: code, agent_code)
-  if (!data) {
-    // Thử tìm với code dạng string/number
-    const keys = Object.keys(detailMap);
-    data = keys.find(k => k == code) ? detailMap[code] : null;
-    if (!data && code && code.startsWith('0')) {
-      // Nếu code có số 0 đầu, thử bỏ số 0
-      const codeNoZero = code.replace(/^0+/, '');
-      data = detailMap[codeNoZero];
-    }
-  }
-  if (!data) data = {};
-
+function renderAgentDetailUI(code, data) {
   const leftCol = `
     <h6 class="font-semibold mb-2">Agent Basic Info</h6>
     ${createInput('Agent number', code, true)}
@@ -134,15 +168,12 @@ function showAgentDetails(el) {
     ${createInput('Deleted Date', data.deleted_date)}
   `;
 
-  const html = `
+  return `
     <div class="grid grid-cols-2 gap-4">
       <div>${leftCol}</div>
       <div>${rightCol}</div>
     </div>
   `;
-
-  document.getElementById("agent-details").innerHTML = html;
-  document.getElementById("agent-id").textContent = data.id || code || '--';
 }
 </script>
 {% endblock %}
