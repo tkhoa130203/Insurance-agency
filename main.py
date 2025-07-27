@@ -254,10 +254,39 @@ def get_agent_detail(agent_code):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/commission')
+def commission_page():
+    tab = request.args.get('tab', 'summary')
+    page = int(request.args.get('page', 1))
+    per_page = 20
+    offset = (page - 1) * per_page
+    from_date = request.args.get('from', '2025-04-01')
+    to_date = request.args.get('to', '2025-04-30')
+
+    if tab == 'summary':
+        data = db.fetch_commission_summary(from_date, to_date, offset=offset, limit=per_page)
+        total = db.count_commission_summary(from_date, to_date)
+        return render_template("pages/commission_summary.html",
+            data=data,
+            current_page=page,
+            total_pages=(total + per_page - 1) // per_page,
+            active_tab='summary'
+        )
+    else:
+        data = db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page)
+        total = db.count_commission_details(from_date, to_date)
+        return render_template("pages/commission_detail.html",
+            data=data,
+            current_page=page,
+            total_pages=(total + per_page - 1) // per_page,
+            active_tab='detail'
+        )
+
 
 @app.route('/export')
 def export():
     return render_template('pages/export.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)

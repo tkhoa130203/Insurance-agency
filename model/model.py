@@ -108,6 +108,102 @@ class AgencyDatabase:
         """
         cursor = self.db.aql.execute(query, bind_vars={'search_term': search_term})
         return list(cursor)
+    
+    def fetch_commission_details(self, from_date, to_date, offset=0, limit=20):
+        query = """
+        LET fromDate = @from_date
+        LET toDate = @to_date
+
+        FOR a IN dms_agent_detail
+            LET policies = (
+                FOR p IN dms_policy_for_premium
+                    FILTER p.servicing_agent == a.agent_code
+                        AND p.applied_premium_date >= fromDate
+                        AND p.applied_premium_date <= toDate
+                    RETURN {
+                        policy_no: p.policy_no,
+                        policy_status: p.policy_status,
+                        issued_date: p.issued_date,
+                        applied_premium_date: p.applied_premium_date,
+                        ack_date: p.ack_date,
+                        freelook: p.freelook,
+                        policy_type: p.policy_type,
+                        policy_remark: p.policy_remark,
+                        fyp: p.fyp,
+                        fyc: p.fyc
+                    }
+            )
+            LIMIT @offset, @limit
+            RETURN {
+                agent_code: a.agent_code,
+                agent_name: a.agent_name,
+                grade: a.grade,
+                agent_status: a.agent_status,
+                date_appointed: a.date_appointed,
+                policies: policies
+            }
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date,
+            "offset": offset,
+            "limit": limit
+        })
+        return list(cursor)
+
+    def count_commission_details(self, from_date, to_date):
+        query = """
+        RETURN LENGTH(
+            FOR p IN dms_policy_for_premium
+                FILTER p.applied_premium_date >= @from_date
+                    AND p.applied_premium_date <= @to_date
+                RETURN 1
+        )
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date
+        })
+        return next(cursor, 0)
+
+        
+    def fetch_commission_summary(self, from_date, to_date, offset=0, limit=20):
+        query = """
+        LET fromDate = @from_date
+        LET toDate = @to_date
+        LET typeCode = "MONTHLY"
+
+        FOR doc IN Calculate_For_Agent
+            FILTER doc.type_code == typeCode
+                AND doc.calculated_from == fromDate
+                AND doc.calculated_to == toDate
+            SORT doc.agent_code
+            LIMIT @offset, @limit
+            RETURN doc
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date,
+            "offset": offset,
+            "limit": limit
+        })
+        return list(cursor)
+
+    def count_commission_summary(self, from_date, to_date):
+        query = """
+        RETURN LENGTH(
+            FOR doc IN Calculate_For_Agent
+                FILTER doc.type_code == "MONTHLY"
+                    AND doc.calculated_from == @from_date
+                    AND doc.calculated_to == @to_date
+                RETURN 1
+        )
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date
+        })
+        return next(cursor, 0)
 
 # Hàm phụ trợ sắp xếp theo cấp bậc
 def sort_nodes_by_grade(nodes):

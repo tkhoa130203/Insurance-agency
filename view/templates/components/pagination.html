@@ -1,0 +1,36 @@
+<div class="mt-4 text-center flex flex-wrap justify-center gap-1">
+  {% if current_page > 1 %}
+    <a href="?tab={{ active_tab }}&page={{ current_page - 1 }}" class="px-3 py-1 border rounded">&laquo;</a>
+  {% endif %}
+
+  <a href="?tab={{ active_tab }}&page=1"
+     class="px-3 py-1 border rounded {% if current_page == 1 %}bg-blue-500 text-white{% endif %}">1</a>
+
+  {% if current_page > 4 %}
+    <span class="px-2 py-1">...</span>
+  {% endif %}
+
+  {% for p in range(current_page - 2, current_page + 3) %}
+    {% if p > 1 and p < total_pages %}
+      <a href="?tab={{ active_tab }}&page={{ p }}"
+         class="px-3 py-1 border rounded {% if p == current_page %}bg-blue-500 text-white{% endif %}">
+         {{ p }}
+      </a>
+    {% endif %}
+  {% endfor %}
+
+  {% if current_page < total_pages - 3 %}
+    <span class="px-2 py-1">...</span>
+  {% endif %}
+
+  {% if total_pages > 1 %}
+    <a href="?tab={{ active_tab }}&page={{ total_pages }}"
+       class="px-3 py-1 border rounded {% if current_page == total_pages %}bg-blue-500 text-white{% endif %}">
+       {{ total_pages }}
+    </a>
+  {% endif %}
+
+  {% if current_page < total_pages %}
+    <a href="?tab={{ active_tab }}&page={{ current_page + 1 }}" class="px-3 py-1 border rounded">&raquo;</a>
+  {% endif %}
+</div>

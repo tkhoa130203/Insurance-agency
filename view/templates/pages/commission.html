@@ -1,0 +1,147 @@
+{% extends "dashboard-layout.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-4">Commission</h2>
+
+<!-- Tabs -->
+<div class="flex border-b mb-4">
+  <button class="tab-btn px-4 py-2 border-b-2" data-tab="summary">Summary</button>
+  <button class="tab-btn px-4 py-2 border-b-2" data-tab="detail">Detail</button>
+</div>
+
+<!-- Tab Content: Summary -->
+<!-- Summary -->
+<div id="summary" class="tab-content {% if active_tab != 'summary' %}hidden{% endif %}">
+  <table class="w-full text-sm border">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="border px-2 py-1">No.</th>
+        <th class="border px-2 py-1">Agent Code</th>
+        <th class="border px-2 py-1">Premium</th>
+        <th class="border px-2 py-1">FYC</th>
+        <th class="border px-2 py-1">Bonus</th>
+        <th class="border px-2 py-1">Period</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data %}
+        <tr>
+          <td class="border px-2 py-1">{{ loop.index + ((current_page - 1) * 20) }}</td>
+          <td class="border px-2 py-1">{{ item.agent_code }}</td>
+          <td class="border px-2 py-1">{{ item.premium or 0 }}</td>
+          <td class="border px-2 py-1">{{ item.fyc or 0 }}</td>
+          <td class="border px-2 py-1">{{ item.bonus or 0 }}</td>
+          <td class="border px-2 py-1">{{ item.calculated_from }} → {{ item.calculated_to }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  <div class="mt-4 text-center">
+    {% if current_page > 1 %}
+      <a href="?tab=summary&page={{ current_page - 1 }}" class="px-3 py-1 border rounded mx-1">&laquo; Prev</a>
+    {% endif %}
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == current_page %}
+        <span class="px-3 py-1 border rounded bg-blue-500 text-white mx-1">{{ p }}</span>
+      {% else %}
+        <a href="?tab=summary&page={{ p }}" class="px-3 py-1 border rounded mx-1">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if current_page < total_pages %}
+      <a href="?tab=summary&page={{ current_page + 1 }}" class="px-3 py-1 border rounded mx-1">Next &raquo;</a>
+    {% endif %}
+  </div>
+</div>
+
+
+<!-- Tab Content: Detail -->
+<div id="detail" class="tab-content ">
+  <form class="mb-4">
+    <label class="block text-sm mb-1">Filter:</label>
+    <input type="text" class="border px-2 py-1 w-64" placeholder="Search detail...">
+    <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
+  </form>
+
+  <table class="w-full text-sm border">
+    <thead class="bg-gray-100">
+      <tr><form class="mb-4">
+    <label class="block text-sm mb-1">Filter:</label>
+    <input type="text" class="border px-2 py-1 w-64" placeholder="Search detail...">
+    <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
+  </form>
+        <th class="border px-2 py-1">No.</th>
+        <th class="border px-2 py-1">Agent Code</th>
+        <th class="border px-2 py-1">Appointed Date</th>
+        <th class="border px-2 py-1">Type</th>
+        <th class="border px-2 py-1">Period</th>
+      </tr>
+    </thead>
+    <tbody>
+  {% for item in data %}
+  <tr>
+    <td class="border px-2 py-1">{{ loop.index + ((current_page - 1) * 20) }}</td>
+    <td class="border px-2 py-1">{{ item.agent_code }}</td>
+    <td class="border px-2 py-1">{{ item.date_appointed or "N/A" }}</td>
+    <td class="border px-2 py-1">
+      {% if item.policies and item.policies[0].policy_type %}
+        {{ item.policies[0].policy_type }}
+      {% else %}
+        N/A
+      {% endif %}
+    </td>
+    <td class="border px-2 py-1">
+      {% if item.policies and item.policies[0].applied_premium_date %}
+        {{ item.policies[0].applied_premium_date[:7]|replace("-", "") }}
+      {% else %}
+        N/A
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
+
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="mt-4 text-center">
+  {% if current_page > 1 %}
+    <a href="?tab={{ active_tab }}&page={{ current_page - 1 }}" class="px-3 py-1 border rounded mx-1">&laquo; Prev</a>
+  {% endif %}
+
+  {% for p in range(1, total_pages + 1) %}
+    {% if p == current_page %}
+      <span class="px-3 py-1 border rounded bg-blue-500 text-white mx-1">{{ p }}</span>
+    {% else %}
+      <a href="?tab={{ active_tab }}&page={{ p }}" class="px-3 py-1 border rounded mx-1">{{ p }}</a>
+    {% endif %}
+  {% endfor %}
+
+  {% if current_page < total_pages %}
+    <a href="?tab={{ active_tab }}&page={{ current_page + 1 }}" class="px-3 py-1 border rounded mx-1">Next &raquo;</a>
+  {% endif %}
+</div>
+
+
+<script>
+  const tabs = document.querySelectorAll('.tab-btn');
+  const contents = document.querySelectorAll('.tab-content');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-tab');
+      tabs.forEach(btn => btn.classList.remove('border-blue-500', 'text-blue-600'));
+      tab.classList.add('border-blue-500', 'text-blue-600');
+
+      contents.forEach(c => c.classList.add('hidden'));
+      document.getElementById(target).classList.remove('hidden');
+    });
+  });
+
+  // Default tab
+  tabs[0].click();
+</script>
+
+{% endblock %}

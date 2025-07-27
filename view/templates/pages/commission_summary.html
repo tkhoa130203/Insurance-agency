@@ -1,0 +1,45 @@
+{% extends "dashboard-layout.html" %}
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Commission Summary</h2>
+
+<!-- Tab Links -->
+<div class="flex border-b mb-4">
+  <a href="{{ url_for('commission_page', tab='summary') }}"
+     class="tab-btn px-4 py-2 border-b-2 border-blue-500 text-blue-600">Summary</a>
+  <a href="{{ url_for('commission_page', tab='detail') }}"
+     class="tab-btn px-4 py-2 border-b-2">Detail</a>
+</div>
+<form class="mb-4">
+    <label class="block text-sm mb-1">Filter:</label>
+    <input type="text" class="border px-2 py-1 w-64" placeholder="Search summary...">
+    <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
+  </form>
+<!-- Table -->
+<table class="w-full text-sm border">
+  <thead class="bg-gray-100">
+    <tr>
+      <th class="border px-2 py-1">No.</th>
+      <th class="border px-2 py-1">Agent Code</th>
+      <th class="border px-2 py-1">Premium</th>
+      <th class="border px-2 py-1">FYC</th>
+      <th class="border px-2 py-1">Bonus</th>
+      <th class="border px-2 py-1">Period</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in data %}
+    <tr>
+      <td class="border px-2 py-1">{{ loop.index + ((current_page - 1) * 20) }}</td>
+      <td class="border px-2 py-1">{{ item.agent_code }}</td>
+      <td class="border px-2 py-1">{{ item.premium or 0 }}</td>
+      <td class="border px-2 py-1">{{ item.fyc or 0 }}</td>
+      <td class="border px-2 py-1">{{ item.bonus or 0 }}</td>
+      <td class="border px-2 py-1">{{ item.calculated_from }} → {{ item.calculated_to }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Pagination (giống như bạn yêu cầu) -->
+{% include "components/pagination.html" %}
+{% endblock %}
