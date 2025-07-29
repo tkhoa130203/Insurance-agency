@@ -117,11 +117,31 @@ def list_contracts():
 @app.route('/add_contract')
 def add_contract():
     return render_template('pages/add_contract.html')
-
 @app.route('/sales_channel_structure')
 def sales_channel_structure():
+    search = request.args.get('search', '').strip().lower()
+    
+    # Lấy danh sách quan hệ đại lý và chi tiết
     agents = db.fetch_agents()
     detail_map = db.fetch_agent_details(agents, only_common=True)
+
+    # Nếu có tìm kiếm, lọc chỉ các quan hệ có chứa từ khóa trong mã hoặc tên
+    if search:
+        filtered_codes = set()
+        for rel in agents:
+            if (
+                search in str(rel.get("agent_name", "")).lower()
+                or search in str(rel.get("child_name", "")).lower()
+                or search in str(rel.get("agent_code", "")).lower()
+                or search in str(rel.get("child_code", "")).lower()
+            ):
+                filtered_codes.add(rel.get("agent_code"))
+                filtered_codes.add(rel.get("child_code"))
+
+        agents = [
+            rel for rel in agents
+            if rel.get("agent_code") in filtered_codes or rel.get("child_code") in filtered_codes
+        ]
 
     roots = []
     children_map = {}
@@ -159,14 +179,22 @@ def sales_channel_structure():
             if child_code not in children_map[code]:
                 children_map[code].append(child_code)
 
-    #  Xác định root node theo grade cao nhất (SF hoặc FC)
+    # Tìm root nodes theo cấp cao nhất (SF hoặc FC)
     max_level = max(GRADE_ORDER.values())
     for code, node in node_map.items():
         grade = node.get("grade")
         if grade and GRADE_ORDER.get(grade, 0) == max_level:
             roots.append(node)
 
-    #  Chỉ load 1 cấp con tiếp theo (ví dụ: từ SF/FC → FM)
+    # Nếu có search: sắp xếp root node sao cho khớp nằm trên cùng
+    if search:
+        def score(node):
+            name = node.get("name", "").lower()
+            code = node.get("code", "").lower()
+            return int(search in name or search in code)
+        roots.sort(key=score, reverse=True)
+
+    # Chỉ load 1 cấp con tiếp theo (SF/FC → FM...)
     from collections import deque
     queue = deque(roots)
     for _ in range(len(queue)):
@@ -184,6 +212,7 @@ def sales_channel_structure():
         agent_tree=roots,
         detail_map=detail_map
     )
+
 
 @app.route("/api/agent-children/<parent_code>")
 def get_agent_children(parent_code):

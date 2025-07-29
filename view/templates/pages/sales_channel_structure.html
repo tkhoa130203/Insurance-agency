@@ -6,6 +6,12 @@
   {% set link = "Sales Channel Structure" %}
   {% include "components/breadcrumb.html" %}
 {% endblock %}
+<form method="get" class="mb-2">
+  <input type="text" name="search" placeholder="Tìm mã hoặc tên đại lý"
+         class="border px-2 py-1 rounded text-sm w-full"
+         value="{{ request.args.get('search', '') }}">
+  <button type="submit" class="mt-1 bg-blue-600 text-white px-2 py-1 text-sm rounded">Tìm</button>
+</form>
 
 {% macro render_agent_tree(nodes) %}
 <ul class="ml-4 text-xs list-disc">
