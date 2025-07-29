@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 from model.model import AgencyDatabase
-from controller.controller import build_tree_from_relation_bfs
+from controller.controller import build_tree_from_relation_bfs, sort_nodes_by_grade, remove_duplicate_policies
 from model.model import GRADE_ORDER, VALID_GRADES
 
 # Jinja2 filter: combine 2 dicts (node, node.details)
@@ -159,14 +159,14 @@ def sales_channel_structure():
             if child_code not in children_map[code]:
                 children_map[code].append(child_code)
 
-    # ✅ Xác định root node theo grade cao nhất (SF hoặc FC)
+    #  Xác định root node theo grade cao nhất (SF hoặc FC)
     max_level = max(GRADE_ORDER.values())
     for code, node in node_map.items():
         grade = node.get("grade")
         if grade and GRADE_ORDER.get(grade, 0) == max_level:
             roots.append(node)
 
-    # ✅ Chỉ load 1 cấp con tiếp theo (ví dụ: từ SF/FC → FM)
+    #  Chỉ load 1 cấp con tiếp theo (ví dụ: từ SF/FC → FM)
     from collections import deque
     queue = deque(roots)
     for _ in range(len(queue)):
@@ -273,12 +273,12 @@ def commission_page():
             active_tab='summary'
         )
     else:
-        data = db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page)
+        data = remove_duplicate_policies(db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page+20))
         total = db.count_commission_details(from_date, to_date)
         return render_template("pages/commission_detail.html",
             data=data,
             current_page=page,
-            total_pages=(total + per_page - 1) // per_page,
+            total_pages=(total + per_page + 20 - 1) // per_page,
             active_tab='detail'
         )
 

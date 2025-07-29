@@ -66,3 +66,16 @@ def build_tree_from_relation_bfs(relations, detail_map=None):
 
     sort_nodes_by_grade(root_nodes)
     return root_nodes
+
+def remove_duplicate_policies(data):
+    seen = set()
+    result = []
+    for item in data:
+        unique_policies = []
+        for p in item['policies']:
+            if p['policy_no'] not in seen:
+                seen.add(p['policy_no'])
+                unique_policies.append(p)
+        item['policies'] = unique_policies
+        result.append(item)
+    return result
