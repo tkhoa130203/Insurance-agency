@@ -9,11 +9,13 @@
   <a href="{{ url_for('commission_page', tab='detail') }}"
      class="tab-btn px-4 py-2 border-b-2">Detail</a>
 </div>
-<form class="mb-4">
-    <label class="block text-sm mb-1">Filter:</label>
-    <input type="text" class="border px-2 py-1 w-64" placeholder="Search summary...">
-    <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
-  </form>
+<form method="GET" class="mb-4">
+  <input type="hidden" name="tab" value="{{ active_tab }}">
+  <input type="text" name="search" placeholder="Search agent code or name..."
+         value="{{ search }}" class="border px-2 py-1 w-64">
+  <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
+</form>
+
 <!-- Table -->
 <table class="w-full text-sm border">
   <thead class="bg-gray-100">

@@ -262,15 +262,17 @@ def commission_page():
     offset = (page - 1) * per_page
     from_date = request.args.get('from', '2025-04-01')
     to_date = request.args.get('to', '2025-04-30')
+    search = request.args.get('search', '').strip()
 
     if tab == 'summary':
-        data = db.fetch_commission_summary(from_date, to_date, offset=offset, limit=per_page)
-        total = db.count_commission_summary(from_date, to_date)
+        data = db.fetch_commission_summary(from_date, to_date, offset=offset, limit=per_page, search=search)
+        total = db.count_commission_summary(from_date, to_date, search=search)
         return render_template("pages/commission_summary.html",
             data=data,
             current_page=page,
             total_pages=(total + per_page - 1) // per_page,
-            active_tab='summary'
+            active_tab='summary',
+            search=search
         )
     else:
         data = remove_duplicate_policies(db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page+20))
