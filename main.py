@@ -267,7 +267,8 @@ def commission_page():
     if tab == 'summary':
         data = db.fetch_commission_summary(from_date, to_date, offset=offset, limit=per_page, search=search)
         total = db.count_commission_summary(from_date, to_date, search=search)
-        return render_template("pages/commission_summary.html",
+        return render_template(
+            "pages/commission_summary.html",
             data=data,
             current_page=page,
             total_pages=(total + per_page - 1) // per_page,
@@ -275,14 +276,17 @@ def commission_page():
             search=search
         )
     else:
-        data = remove_duplicate_policies(db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page+20))
-        total = db.count_commission_details(from_date, to_date)
-        return render_template("pages/commission_detail.html",
+        data = db.fetch_commission_details(from_date, to_date, offset=offset, limit=per_page, search=search)
+        total = db.count_commission_details(from_date, to_date, search=search)
+        return render_template(
+            "pages/commission_detail.html",
             data=data,
             current_page=page,
-            total_pages=(total + per_page + 20 - 1) // per_page,
-            active_tab='detail'
+            total_pages=(total + per_page - 1) // per_page,
+            active_tab='detail',
+            search=search
         )
+
 
 
 @app.route('/export')

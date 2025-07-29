@@ -1,6 +1,10 @@
+# model.py
+
+import uuid
 from arango import ArangoClient
 from collections import defaultdict
 
+# Các hằng số
 GRADE_ORDER = {
     "GM": 1,
     "RM": 2,
@@ -12,37 +16,24 @@ GRADE_ORDER = {
 
 VALID_GRADES = {"SF", "FC", "DM"}
 
-
+# Model đại lý
 class Agency:
     def __init__(self, name, region, manager):
         self.name = name
         self.region = region
         self.manager = manager
-
-    def __str__(self):
-        return f"{self.name} ({self.region}) - Managed by {self.manager}"
+        self._key = str(uuid.uuid4())
 
     def to_dict(self):
         return {
+            "_key": self._key,
             "name": self.name,
             "region": self.region,
             "manager": self.manager
         }
 
-
+# Kết nối và thao tác CSDL
 class AgencyDatabase:
-    def fetch_agent_details(self):
-        # Lấy toàn bộ chi tiết agent từ collection dms_agent_detail, trả về dict agent_code -> detail
-        if not self.db.has_collection("dms_agent_detail"):
-            return {}
-        detail_col = self.db.collection("dms_agent_detail")
-        details = list(detail_col.all())
-        detail_map = {}
-        for detail in details:
-            code = detail.get("agent_code")
-            if code:
-                detail_map[code] = detail
-        return detail_map
     def __init__(self, db_name="agency_db", collection_name="agencies"):
         client = ArangoClient()
         self.sys_db = client.db("_system", username="root", password="123456")
@@ -56,6 +47,42 @@ class AgencyDatabase:
             self.collection = self.db.create_collection(collection_name)
         else:
             self.collection = self.db.collection(collection_name)
+
+    def fetch_agents(self):
+        return list(self.db.collection("dms_agent_direct_indirect").all())
+
+    def fetch_agent_details(self, relations=None, only_common=False):
+        if not self.db.has_collection("dms_agent_detail"):
+            return {}
+
+        detail_col = self.db.collection("dms_agent_detail")
+
+        if not only_common or not relations:
+            details = list(detail_col.all())
+        else:
+            related_codes = set()
+            for rel in relations:
+                if "agent_code" in rel:
+                    related_codes.add(str(rel["agent_code"]))
+                if "child_code" in rel:
+                    related_codes.add(str(rel["child_code"]))
+
+            codes_list = [str(code) for code in related_codes]
+
+            query = """
+            FOR doc IN dms_agent_detail
+                FILTER TO_STRING(doc.agent_code) IN @codes
+                RETURN doc
+            """
+            cursor = self.db.aql.execute(query, bind_vars={"codes": codes_list})
+            details = list(cursor)
+
+        detail_map = {}
+        for detail in details:
+            code = str(detail.get("agent_code"))
+            detail_map[code] = detail
+
+        return detail_map
 
     def bring_on_new_agency(self, name, region, manager):
         new_agency = Agency(name, region, manager)
@@ -80,90 +107,105 @@ class AgencyDatabase:
             RETURN agency
         """
         cursor = self.db.aql.execute(query, bind_vars={'search_term': search_term})
-        results = list(cursor)
+        return list(cursor)
+    
+    def fetch_commission_details(self, from_date, to_date, offset=0, limit=20):
+        query = """
+        LET fromDate = @from_date
+        LET toDate = @to_date
 
-        if not results:
-            print(f"❌ Không tìm thấy đại lý tên '{search_term}'")
-        else:
-            print(f"\n🔍 Kết quả tìm kiếm '{search_term}':")
-            for agency in results:
-                print(f"- {agency['name']} ({agency['region']}) - Quản lý: {agency['manager']}")
-
-        return results
-
-    def fetch_agents(self):
-        cursor = self.db.collection("dms_agent_direct_indirect").all()
+        FOR a IN dms_agent_detail
+            LET policies = (
+                FOR p IN dms_policy_for_premium
+                    FILTER p.servicing_agent == a.agent_code
+                        AND p.applied_premium_date >= fromDate
+                        AND p.applied_premium_date <= toDate
+                    RETURN {
+                        policy_no: p.policy_no,
+                        policy_status: p.policy_status,
+                        issued_date: p.issued_date,
+                        applied_premium_date: p.applied_premium_date,
+                        ack_date: p.ack_date,
+                        freelook: p.freelook,
+                        policy_type: p.policy_type,
+                        policy_remark: p.policy_remark,
+                        fyp: p.fyp,
+                        fyc: p.fyc
+                    }
+            )
+            LIMIT @offset, @limit
+            RETURN {
+                agent_code: a.agent_code,
+                agent_name: a.agent_name,
+                grade: a.grade,
+                agent_status: a.agent_status,
+                date_appointed: a.date_appointed,
+                policies: policies
+            }
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date,
+            "offset": offset,
+            "limit": limit
+        })
         return list(cursor)
 
+    def count_commission_details(self, from_date, to_date):
+        query = """
+        RETURN LENGTH(
+            FOR p IN dms_policy_for_premium
+                FILTER p.applied_premium_date >= @from_date
+                    AND p.applied_premium_date <= @to_date
+                RETURN 1
+        )
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date
+        })
+        return next(cursor, 0)
 
-def build_tree_from_relation(relations, detail_map=None):
-    node_map = {}
-    children_map = defaultdict(list)
-    all_children = set()
+        
+    def fetch_commission_summary(self, from_date, to_date, offset=0, limit=20):
+        query = """
+        LET fromDate = @from_date
+        LET toDate = @to_date
+        LET typeCode = "MONTHLY"
 
-    if detail_map is None:
-        detail_map = {}
+        FOR doc IN Calculate_For_Agent
+            FILTER doc.type_code == typeCode
+                AND doc.calculated_from == fromDate
+                AND doc.calculated_to == toDate
+            SORT doc.agent_code
+            LIMIT @offset, @limit
+            RETURN doc
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date,
+            "offset": offset,
+            "limit": limit
+        })
+        return list(cursor)
 
-    filtered = [
-        rel for rel in relations
-        if rel.get("agent_grade") in VALID_GRADES or rel.get("child_grade") in VALID_GRADES
-    ]
+    def count_commission_summary(self, from_date, to_date):
+        query = """
+        RETURN LENGTH(
+            FOR doc IN Calculate_For_Agent
+                FILTER doc.type_code == "MONTHLY"
+                    AND doc.calculated_from == @from_date
+                    AND doc.calculated_to == @to_date
+                RETURN 1
+        )
+        """
+        cursor = self.db.aql.execute(query, bind_vars={
+            "from_date": from_date,
+            "to_date": to_date
+        })
+        return next(cursor, 0)
 
-    for rel in filtered:
-        a_code = rel.get("agent_code")
-        c_code = rel.get("child_code")
-
-        # ----- Đại lý cha -----
-        if a_code and a_code not in node_map and rel.get("agent_grade") in VALID_GRADES:
-            merged = {}
-            # Gộp tất cả field từ record direct_indirect
-            merged.update(rel)
-            # Gộp thêm từ detail nếu có
-            if a_code in detail_map:
-                merged.update(detail_map[a_code])
-            # Chuẩn hóa tên và thông tin chính
-            merged["code"] = a_code
-            merged["name"] = rel.get("agent_name", "")
-            merged["grade"] = rel.get("agent_grade", "")
-            merged["children"] = []
-            node_map[a_code] = merged
-
-        # ----- Đại lý con -----
-        if c_code and c_code not in node_map and rel.get("child_grade") in VALID_GRADES:
-            merged = {}
-            merged.update(rel)
-            if c_code in detail_map:
-                merged.update(detail_map[c_code])
-            merged["code"] = c_code
-            merged["name"] = rel.get("child_name", "")
-            merged["grade"] = rel.get("child_grade", "")
-            merged["children"] = []
-            node_map[c_code] = merged
-
-        # Gán quan hệ cha-con
-        if a_code in node_map and c_code in node_map:
-            children_map[a_code].append(c_code)
-            all_children.add(c_code)
-
-    # Gán children vào parent
-    for parent_code, child_codes in children_map.items():
-        node_map[parent_code]["children"] = [node_map[c] for c in child_codes]
-
-    # Root
-    root_nodes = [node for code, node in node_map.items() if code not in all_children]
-
-    if not root_nodes:
-        root_nodes = [{
-            "code": "ROOT",
-            "name": "ROOT",
-            "grade": "",
-            "children": list(node_map.values())
-        }]
-
-    sort_nodes_by_grade(root_nodes)
-    return root_nodes
-
-
+# Hàm phụ trợ sắp xếp theo cấp bậc
 def sort_nodes_by_grade(nodes):
     stack = list(nodes)
     while stack:

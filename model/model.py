@@ -109,12 +109,22 @@ class AgencyDatabase:
         cursor = self.db.aql.execute(query, bind_vars={'search_term': search_term})
         return list(cursor)
 
-    def fetch_commission_details(self, from_date, to_date, offset=0, limit=20):
+    def fetch_commission_details(self, from_date, to_date, offset=0, limit=20, search=None):
         query = """
         LET fromDate = @from_date
         LET toDate = @to_date
 
+        LET matched_agents = (
+            FOR p IN dms_policy_for_premium
+                FILTER p.applied_premium_date >= fromDate
+                    AND p.applied_premium_date <= toDate
+                COLLECT agent_code = p.servicing_agent INTO grouped
+                RETURN DISTINCT agent_code
+        )
+
         FOR a IN dms_agent_detail
+            FILTER a.agent_code IN matched_agents
+            {{search_filter}}
             LET policies = (
                 FOR p IN dms_policy_for_premium
                     FILTER p.servicing_agent == a.agent_code
@@ -143,15 +153,29 @@ class AgencyDatabase:
                 policies: policies
             }
         """
-        cursor = self.db.aql.execute(query, bind_vars={
+
+        bind_vars = {
             "from_date": from_date,
             "to_date": to_date,
             "offset": offset,
             "limit": limit
-        })
+        }
+
+        if search:
+            search_filter = "AND (CONTAINS(LOWER(a.agent_code), LOWER(@search)) OR CONTAINS(LOWER(a.agent_name), LOWER(@search)) OR CONTAINS(LOWER(a.policies.policy_no), LOWER(@search)))"
+            bind_vars["search"] = search
+            
+        else:
+            search_filter = ""
+
+        final_query = query.replace("{{search_filter}}", search_filter)
+    
+        cursor = self.db.aql.execute(final_query, bind_vars=bind_vars)
         return list(cursor)
 
-    def count_commission_details(self, from_date, to_date):
+
+
+    def count_commission_details(self, from_date, to_date, search=None):
         query = """
         RETURN LENGTH(
             FOR p IN dms_policy_for_premium
