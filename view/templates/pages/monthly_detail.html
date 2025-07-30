@@ -1,0 +1,60 @@
+{% extends "dashboard-layout.html" %}
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Commission Detail</h2>
+
+<!-- Tab Links -->
+<div class="flex border-b mb-4">
+  <a href="{{ url_for('commission_page', tab='summary') }}"
+     class="tab-btn px-4 py-2 border-b-2">Summary</a>
+  <a href="{{ url_for('commission_page', tab='detail') }}"
+     class="tab-btn px-4 py-2 border-b-2 border-blue-500 text-blue-600">Detail</a>
+</div>
+<form method="GET" class="mb-4">
+  <input type="hidden" name="tab" value="{{ active_tab }}">
+  <input type="text" name="search" placeholder="Search agent code or name..."
+         value="{{ search }}" class="border px-2 py-1 w-64">
+  <button type="submit" class="bg-blue-500 text-white px-4 py-1 ml-2 rounded">Search</button>
+</form>
+
+<table class="w-full text-sm border">
+  <thead class="bg-gray-100">
+    <tr>
+      <th class="border px-2 py-1">Agent Code</th>
+      <th class="border px-2 py-1">Policy No</th>
+      <th class="border px-2 py-1">Policy Type</th>
+      <th class="border px-2 py-1">Premium Date</th>
+      <th class="border px-2 py-1">Policy Status</th>
+      <th class="border px-2 py-1">FYP</th>
+      <th class="border px-2 py-1">FYC</th>
+      <th class="border px-2 py-1">Status</th>
+      <th class="border px-2 py-1">Remark</th>
+      <th class="border px-2 py-1">Appointed Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in data %}
+      {% for p in item.policies %}
+        <tr>
+          <td class="border px-2 py-1">{{ item.agent_code }}</td>
+          <td class="border px-2 py-1">{{ p.policy_no }}</td>
+          <td class="border px-2 py-1">{{ p.policy_type }}</td>
+          <td class="border px-2 py-1">
+            {{ p.applied_premium_date[:7]|replace('-', '') if p.applied_premium_date else 'N/A' }}
+          </td>
+          <td class="border px-2 py-1">{{ p.policy_status }}</td>
+          <td class="border px-2 py-1">{{ p.fyp }}</td>
+          <td class="border px-2 py-1">{{ p.fyc }}</td>
+          <td class="border px-2 py-1">{{ p.policy_status }}</td>
+          <td class="border px-2 py-1">{{ p.policy_remark }}</td>
+          <td class="border px-2 py-1">{{ item.date_appointed or "N/A" }}</td>
+        </tr>
+        
+      {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<!-- Pagination -->
+{% include "components/pagination.html" %}
+{% endblock %}

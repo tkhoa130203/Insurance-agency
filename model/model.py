@@ -173,8 +173,6 @@ class AgencyDatabase:
         cursor = self.db.aql.execute(final_query, bind_vars=bind_vars)
         return list(cursor)
 
-
-
     def count_commission_details(self, from_date, to_date, search=None):
         query = """
         RETURN LENGTH(
@@ -191,6 +189,77 @@ class AgencyDatabase:
         return next(cursor, 0)
 
     def fetch_commission_summary(self, from_date, to_date, offset=0, limit=20, search=None):
+        query = """
+        LET fromDate = @from_date
+        LET toDate = @to_date
+        LET typeCode = "COM"
+
+        FOR doc IN Calculate_For_Agent
+            FILTER doc.type_code == typeCode
+                AND doc.calculated_from == fromDate
+                AND doc.calculated_to == toDate
+                {search_filter}
+            SORT doc.agent_code
+            LIMIT @offset, @limit
+            RETURN doc
+        """
+
+        search_filter = ""
+        bind_vars = {
+            "from_date": from_date,
+            "to_date": to_date,
+            "offset": offset,
+            "limit": limit,
+        }
+
+        if search:
+            search_filter = "AND (CONTAINS(LOWER(doc.agent_code), LOWER(@search)) OR CONTAINS(LOWER(doc.agent_name), LOWER(@search)))"
+            bind_vars["search"] = search
+
+        final_query = query.replace("{search_filter}", search_filter)
+
+        cursor = self.db.aql.execute(final_query, bind_vars=bind_vars)
+        return list(cursor)
+
+
+    def count_commission_summary(self, from_date, to_date, search=None):
+        query = """
+        RETURN LENGTH(
+            FOR doc IN Calculate_For_Agent
+                FILTER doc.type_code == "COM"
+                    AND doc.calculated_from == @from_date
+                    AND doc.calculated_to == @to_date
+                    {search_filter}
+                RETURN 1
+        )
+        """
+        search_filter = ""
+        bind_vars = {
+            "from_date": from_date,
+            "to_date": to_date
+        }
+
+        if search:
+            search_filter = "AND (CONTAINS(LOWER(doc.agent_code), LOWER(@search)) OR CONTAINS(LOWER(doc.agent_name), LOWER(@search)))"
+            bind_vars["search"] = search
+
+        final_query = query.replace("{search_filter}", search_filter)
+        cursor = self.db.aql.execute(final_query, bind_vars=bind_vars)
+        return next(cursor, 0)
+
+        if search_term:
+            filter_clause = """
+            AND (LIKE(LOWER(doc.agent_code), LOWER(@search_term), true)
+                OR LIKE(LOWER(doc.agent_name), LOWER(@search_term), true))
+            """
+            bind_vars["search_term"] = f"%{search_term}%"
+
+        query = query.replace("{{filter_clause}}", filter_clause)
+        cursor = self.db.aql.execute(query, bind_vars=bind_vars)
+        return next(cursor, 0)
+
+    
+    def fetch_monthly_summary(self, from_date, to_date, offset=0, limit=20, search=None):
         query = """
         LET fromDate = @from_date
         LET toDate = @to_date
@@ -224,7 +293,7 @@ class AgencyDatabase:
         return list(cursor)
 
 
-    def count_commission_summary(self, from_date, to_date, search=None):
+    def count_monthly_summary(self, from_date, to_date, search=None):
         query = """
         RETURN LENGTH(
             FOR doc IN Calculate_For_Agent
